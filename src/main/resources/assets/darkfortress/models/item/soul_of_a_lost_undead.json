@@ -1,0 +1,1 @@
+{ "parent": "minecraft:item/generated", "textures": { "layer0": "darkfortress:item/soul_of_a_lost_undead" } }
