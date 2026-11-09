@@ -66,15 +66,29 @@ public final class Ashen {
     public static void sendToRealm(MinecraftServer server, ServerPlayerEntity p) {
         ServerWorld realm = server.getWorld(WORLD);
         if (realm == null) {
-            p.sendMessage(Text.literal("The Ashen Realm doesn't exist in this world. Create a new world with the mod installed.")
+            DarkFortressMod.LOGGER.error("Ashen Realm dimension {} was not found", WORLD.getValue());
+            p.sendMessage(Text.literal("The Ashen Realm dimension is not loaded in this world. "
+                    + "Make a NEW world with the mod installed, and check logs/latest.log for a data pack error.")
                     .formatted(Formatting.RED));
             return;
         }
-        ensureHub(realm);
+        p.sendMessage(Text.literal("Entering the Ashen Realm...").formatted(Formatting.GRAY));
+        try {
+            ensureHub(realm);
+        } catch (Throwable t) {
+            DarkFortressMod.LOGGER.error("Ashen Realm hub generation failed", t);
+            p.sendMessage(Text.literal("Hub generation failed: " + t).formatted(Formatting.RED));
+        }
         LAST_PAD.put(p.getUuid(), (long) server.getTicks());
         p.setSpawnPoint(WORLD, new BlockPos(0, FLOOR + 1, -2), 0.0f, true, false);
         Fx.title(p, "THE ASHEN REALM", Formatting.DARK_GRAY, "Ruins, labyrinths and things that wait");
         tp(server, p, "darkfortress:ashen_realm", 0.5, FLOOR + 1, -4.5);
+        Scheduler.later(40, () -> {
+            if (!p.getWorld().getRegistryKey().equals(WORLD)) {
+                p.sendMessage(Text.literal("The teleport did not happen. Look for a command error in chat above, "
+                        + "and check logs/latest.log.").formatted(Formatting.RED));
+            }
+        });
     }
 
     public static void sendHome(MinecraftServer server, ServerPlayerEntity p) {
@@ -86,7 +100,7 @@ public final class Ashen {
 
     static void tp(MinecraftServer server, ServerPlayerEntity p, String dim, double x, double y, double z) {
         String cmd = String.format(Locale.ROOT, "execute in %s run tp %s %.2f %.2f %.2f", dim, p.getUuidAsString(), x, y, z);
-        server.getCommandManager().executeWithPrefix(server.getCommandSource().withSilent(), cmd);
+        server.getCommandManager().executeWithPrefix(p.getCommandSource().withLevel(4).withSilent(), cmd);
     }
 
     // ------------------------------------------------------------------ hashing
@@ -253,8 +267,21 @@ public final class Ashen {
 
     private static void onChunkLoad(ServerWorld world, WorldChunk chunk) {
         if (!world.getRegistryKey().equals(WORLD)) return;
-        int cx0 = chunk.getPos().getStartX();
-        int cz0 = chunk.getPos().getStartZ();
+        // Do NOT touch the world here: this chunk is still mid-load and world lookups can hang.
+        // Generate a couple of ticks later, when the chunk is fully available.
+        final int cx0 = chunk.getPos().getStartX();
+        final int cz0 = chunk.getPos().getStartZ();
+        Scheduler.later(2, () -> {
+            try {
+                generateChunk(world, cx0, cz0);
+            } catch (Throwable t) {
+                DarkFortressMod.LOGGER.error("Ashen Realm chunk generation failed at " + cx0 + "," + cz0, t);
+            }
+        });
+    }
+
+    private static void generateChunk(ServerWorld world, int cx0, int cz0) {
+        if (!world.getChunkManager().isChunkLoaded(cx0 >> 4, cz0 >> 4)) return;
         BlockPos marker = new BlockPos(cx0, 1, cz0);
         BlockState ms = world.getBlockState(marker);
         if (ms.isAir() || ms.isOf(Blocks.CRYING_OBSIDIAN)) return;

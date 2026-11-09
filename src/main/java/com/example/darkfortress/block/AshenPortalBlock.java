@@ -4,6 +4,9 @@ import com.example.darkfortress.Ashen;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -23,6 +26,14 @@ public class AshenPortalBlock extends Block {
             Ashen.usePad(sw, p);
         }
         super.onSteppedOn(world, pos, state, entity);
+    }
+
+    @Override
+    protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+        if (world instanceof ServerWorld sw && player instanceof ServerPlayerEntity p) {
+            Ashen.usePad(sw, p);
+        }
+        return ActionResult.success(world.isClient());
     }
 
     @Override
