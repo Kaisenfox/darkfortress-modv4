@@ -1,0 +1,18 @@
+{
+  "type": "darkfortress:ashen_realm",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "minecraft:soul_sand_valley",
+      "features": false,
+      "lakes": false,
+      "layers": [
+        { "block": "minecraft:bedrock", "height": 1 },
+        { "block": "minecraft:deepslate", "height": 58 },
+        { "block": "minecraft:blackstone", "height": 4 },
+        { "block": "minecraft:coarse_dirt", "height": 1 }
+      ],
+      "structure_overrides": []
+    }
+  }
+}
