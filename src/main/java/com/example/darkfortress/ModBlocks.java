@@ -4,6 +4,7 @@ import com.example.darkfortress.block.AshenPortalBlock;
 import com.example.darkfortress.block.BonfireBlock;
 import com.example.darkfortress.block.IllusoryWallBlock;
 import com.example.darkfortress.block.KeyGateBlock;
+import com.example.darkfortress.block.SealedGateBlock;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.item.BlockItem;
@@ -18,6 +19,7 @@ public final class ModBlocks {
     public static Block KEY_GATE;
     public static Block ILLUSORY_WALL;
     public static Block ASHEN_PORTAL;
+    public static Block SEALED_GATE;
 
     private ModBlocks() {}
 
@@ -30,6 +32,8 @@ public final class ModBlocks {
                 .strength(1.5f, 6.0f).dropsNothing().sounds(BlockSoundGroup.STONE)));
         ASHEN_PORTAL = register("ashen_portal", new AshenPortalBlock(AbstractBlock.Settings.create()
                 .strength(-1.0f, 3600000.0f).dropsNothing().luminance(s -> 12).sounds(BlockSoundGroup.STONE)));
+        SEALED_GATE = register("sealed_gate", new SealedGateBlock(AbstractBlock.Settings.create()
+                .strength(-1.0f, 3600000.0f).dropsNothing().sounds(BlockSoundGroup.METAL)));
     }
 
     private static Block register(String id, Block block) {

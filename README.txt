@@ -1,15 +1,15 @@
-DARK FORTRESS 2.1.0 - Fabric mod for Minecraft Java 1.21.1 (needs Fabric API, Java 21)
+DARK FORTRESS 2.2.0 - Fabric mod for Minecraft Java 1.21.1 (needs Fabric API, Java 21)
 
-INSTALL: put ONLY dark-fortress-2.1.0.jar (+ Fabric API) in the mods folder. Delete any older
-dark-fortress-*.jar. Use a NEW world.
+NEW IN 2.2.0
+ * Bonfire menu: right-click a bonfire to rest AND open a menu. Spend XP levels on
+   Vitality, Strength, Dexterity, Endurance and Agility (stats persist through death).
+ * You are TRAPPED: the main gate is sealed, the fortress is enclosed by bedrock below and an
+   invisible barrier around it. The gate opens when the Demon of the Keep dies.
+   (Escape hatch for testing: /fortress opengate)
+ * Gloom: permanent dusk + drizzle, drifting fog and ash in the courtyard, cages, skull spikes,
+   barricades, bone piles and dead trees. Toggle in DarkFortressMod.java (ETERNAL_DUSK, GLOOMY_WEATHER).
+ * Ashen Realm makeover: rolling hills, dead trees, glowing teal and red trees, lava pools, soul
+   fire patches, ruined arches, skull spikes, bone piles, and thick Nether-style fog.
 
-AFTER JOINING you should see: "Dark Fortress 2.1.0 loaded."
- The fortress builds itself in stages (progress shows on the action bar), then you are moved
- to the courtyard. If nothing appears:
-   /fortress status    shows whether the mod loaded, where the fortress is, what exists
-   /fortress build     builds the fortress right where you stand (singleplayer: always allowed)
-   /fortress tp        teleports you to the fortress courtyard
-   /fortress kit       gives you one of every mod item
-   /fortress realm     jump to the Ashen Realm
-   /fortress respawn   respawn the fortress enemies
- If the build reports an error it is printed in chat and logs/latest.log.
+USE A NEW WORLD (the sealed fortress and the realm's fog/terrain only apply to new worlds/chunks).
+Commands: /fortress status | tp | build | respawn | kit | realm | opengate

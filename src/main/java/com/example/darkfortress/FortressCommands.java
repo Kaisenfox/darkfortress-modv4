@@ -23,6 +23,7 @@ import net.minecraft.world.World;
  * /fortress respawn  - respawns the fortress enemies
  * /fortress kit      - gives you one of every mod item
  * /fortress realm    - teleports you to the Ashen Realm
+ * /fortress opengate - opens the sealed main gate (escape hatch)
  */
 public final class FortressCommands {
     private FortressCommands() {}
@@ -39,6 +40,7 @@ public final class FortressCommands {
                 .then(CommandManager.literal("build").requires(FortressCommands::allowed).executes(c -> build(c.getSource())))
                 .then(CommandManager.literal("respawn").requires(FortressCommands::allowed).executes(c -> respawn(c.getSource())))
                 .then(CommandManager.literal("kit").requires(FortressCommands::allowed).executes(c -> kit(c.getSource())))
+                .then(CommandManager.literal("opengate").requires(FortressCommands::allowed).executes(c -> openGate(c.getSource())))
                 .then(CommandManager.literal("realm").requires(FortressCommands::allowed).executes(c -> realm(c.getSource()))));
     }
 
@@ -97,6 +99,12 @@ public final class FortressCommands {
         }
         final int count = n;
         src.sendFeedback(() -> Text.literal("Gave you " + count + " Dark Fortress items."), false);
+        return 1;
+    }
+
+    private static int openGate(ServerCommandSource src) {
+        Fortress.openMainGate(src.getServer().getOverworld());
+        src.sendFeedback(() -> Text.literal("The main gate has been opened."), true);
         return 1;
     }
 

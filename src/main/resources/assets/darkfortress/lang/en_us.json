@@ -44,5 +44,6 @@
   "entity.darkfortress.hollow_mage": "Hollow Mage",
   "entity.darkfortress.gargoyle": "Stone Gargoyle",
   "entity.darkfortress.witch_of_ash": "Witch of Ash",
-  "entity.darkfortress.labyrinth_warden": "Labyrinth Warden"
+  "entity.darkfortress.labyrinth_warden": "Labyrinth Warden",
+  "block.darkfortress.sealed_gate": "Sealed Gate"
 }

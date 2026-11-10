@@ -11,6 +11,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.LanternBlock;
+import net.minecraft.block.PillarBlock;
 import net.minecraft.block.StairsBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ChestBlockEntity;
@@ -119,6 +120,10 @@ public final class Fortress {
     private static boolean buildFailed = false;
     private static boolean attempted = false;
 
+    public static BlockPos storedOrigin() {
+        return storedOrigin;
+    }
+
     public static boolean isBuilding() {
         return building;
     }
@@ -201,10 +206,12 @@ public final class Fortress {
         saveOrigin(world.getServer(), o);
         final B b = new B(world, o.getX(), o.getY(), o.getZ());
         final String[] names = {"clearing the land", "clearing the sky", "laying the foundation", "walls and paving",
-                "corner towers", "the Keep", "the catacombs", "courtyard buildings", "bonfires"};
+                "corner towers", "the Keep", "the catacombs", "courtyard buildings", "gloom and decay",
+                "sealing the fortress", "bonfires"};
         final Runnable[] steps = {
                 () -> clearLow(b), () -> clearHigh(b), () -> foundation(b), () -> wallsAndPaving(b),
                 () -> buildTowers(b), () -> buildKeep(b), () -> buildCatacombs(b), () -> buildCourtyard(b),
+                () -> atmosphere(b), () -> sealRing(b),
                 () -> {
                     b.bonfire(0, 0, 3);
                     b.bonfire(0, 0, 38);
@@ -397,6 +404,7 @@ public final class Fortress {
     public static void onBossDefeated(ServerWorld world, DemonLordEntity boss) {
         setFlag(world, FLAG_BOSS);
         openArena(world);
+        openMainGate(world);
 
         BlockPos o = origin(world);
         BlockPos bp = o.add(0, 9, -21);
@@ -547,6 +555,87 @@ public final class Fortress {
 
     // ------------------------------------------------------------------ the build
 
+    /** An invisible barrier wall all around the fortress so nobody can climb or build their way out. */
+    private static void sealRing(B b) {
+        BlockState bar = Blocks.BARRIER.getDefaultState();
+        b.fill(-49, -14, -49, 49, 60, -49, bar);
+        b.fill(-49, -14, 49, 49, 60, 49, bar);
+        b.fill(-49, -14, -48, -49, 60, 48, bar);
+        b.fill(49, -14, -48, 49, 60, 48, bar);
+    }
+
+    /** Called when the Demon of the Keep dies: the gate opens and the barrier lifts. */
+    public static void openMainGate(ServerWorld world) {
+        BlockPos o = origin(world);
+        for (int x = -4; x <= 4; x++)
+            for (int y = 0; y <= 6; y++)
+                for (int z = 46; z <= 48; z++) {
+                    BlockPos p = o.add(x, y, z);
+                    if (world.getBlockState(p).isOf(ModBlocks.SEALED_GATE)) world.breakBlock(p, false);
+                }
+        for (int x = -7; x <= 7; x++)
+            for (int y = -2; y <= 40; y++) {
+                BlockPos p = o.add(x, y, 49);
+                if (world.getBlockState(p).isOf(Blocks.BARRIER)) world.setBlockState(p, AIR, 2);
+            }
+        for (ServerPlayerEntity pl : world.getPlayers(q -> q.squaredDistanceTo(o.getX(), o.getY(), o.getZ()) < 6400.0)) {
+            Fx.title(pl, "THE GATE OPENS", Formatting.GOLD, "You are no longer trapped");
+        }
+    }
+
+    private static void deadTree(B b, int x, int z, int seed) {
+        Random r = new Random(seed * 7919L + x * 31L + z);
+        int h = 6 + r.nextInt(4);
+        BlockState log = Blocks.DARK_OAK_LOG.getDefaultState();
+        for (int y = 0; y < h; y++) b.set(x, y, z, log);
+        for (int k = 0; k < 3; k++) {
+            int by = 3 + r.nextInt(h - 3);
+            Direction d = Direction.fromHorizontal(r.nextInt(4));
+            BlockState bl = log.with(PillarBlock.AXIS, d.getAxis());
+            int len = 2 + r.nextInt(2);
+            for (int i = 1; i <= len; i++) {
+                b.set(x + d.getOffsetX() * i, by + i / 2, z + d.getOffsetZ() * i, bl);
+            }
+            b.set(x + d.getOffsetX() * (len + 1), by + len / 2, z + d.getOffsetZ() * (len + 1), Blocks.COBWEB.getDefaultState());
+        }
+    }
+
+    /** Gloom: cages, skulls on spikes, barricades, bone piles and dead trees. */
+    private static void atmosphere(B b) {
+        BlockState bars = Blocks.IRON_BARS.getDefaultState();
+        BlockState skull = Blocks.SKELETON_SKULL.getDefaultState();
+        int[][] cages = {{-26, -8}, {26, -15}, {-40, 12}, {40, 14}, {-12, 22}, {16, 10}, {-28, 43}, {28, 43}};
+        for (int[] c : cages) {
+            b.fill(c[0] - 1, 0, c[1] - 1, c[0] + 1, 3, c[1] + 1, bars);
+            b.fill(c[0], 0, c[1], c[0], 2, c[1], AIR);
+            b.set(c[0], 0, c[1], skull);
+        }
+        // Skulls on spikes flanking the sealed gate.
+        for (int dx : new int[]{-8, -7, 7, 8}) {
+            b.fill(dx, 0, 44, dx, 1, 44, Blocks.STONE_BRICK_WALL.getDefaultState());
+            b.set(dx, 2, 44, skull);
+        }
+        // Barricades and cobwebs.
+        BlockState fence = Blocks.SPRUCE_FENCE.getDefaultState();
+        b.fill(-12, 0, 42, -9, 1, 42, fence);
+        b.fill(9, 0, 42, 12, 1, 42, fence);
+        b.set(-10, 2, 42, Blocks.COBWEB.getDefaultState());
+        b.set(10, 2, 42, Blocks.COBWEB.getDefaultState());
+        // Bone piles near the gate.
+        for (int i = 0; i < 40; i++) {
+            int x = -14 + b.rnd.nextInt(29);
+            int z = 40 + b.rnd.nextInt(6);
+            if (b.get(x, 0, z).isAir()) {
+                b.set(x, 0, z, Blocks.BONE_BLOCK.getDefaultState());
+                if (b.rnd.nextInt(4) == 0) b.set(x, 1, z, skull);
+            }
+        }
+        // Dead trees.
+        int[][] trees = {{-42, -12}, {42, -14}, {-41, 40}, {42, 40}, {-8, -38}, {9, -39}, {-42, 26}, {42, -8}};
+        int seed = 1;
+        for (int[] t : trees) deadTree(b, t[0], t[1], seed++);
+    }
+
     private static void clearLow(B b) {
         b.fill(-49, 0, -49, 49, 12, 49, AIR);
     }
@@ -558,6 +647,12 @@ public final class Fortress {
     private static void foundation(B b) {
         BlockState stone = Blocks.STONE.getDefaultState();
         b.fill(-48, -14, -48, 48, -2, 48, stone);
+        BlockState bed = Blocks.BEDROCK.getDefaultState();
+        b.fill(-48, -14, -48, 48, -14, 48, bed);
+        b.fill(-48, -13, -48, 48, -2, -47, bed);
+        b.fill(-48, -13, 47, 48, -2, 48, bed);
+        b.fill(-48, -13, -46, -47, -2, 46, bed);
+        b.fill(47, -13, -46, 48, -2, 46, bed);
         for (int x = -48; x <= 48; x++) {
             for (int z = -48; z <= 48; z++) {
                 if (Math.abs(x) < 45 && Math.abs(z) < 45) continue;
@@ -586,9 +681,8 @@ public final class Fortress {
                 b.set(48, y, i, b.brick());
             }
         }
-        // South gate with a half-raised portcullis.
-        b.fill(-4, 0, 46, 4, 6, 48, AIR);
-        b.fill(-4, 5, 47, 4, 6, 47, Blocks.IRON_BARS.getDefaultState());
+        // South gate: sealed until the Demon of the Keep falls.
+        b.fill(-4, 0, 46, 4, 6, 48, ModBlocks.SEALED_GATE.getDefaultState());
 
         // Rampart stairs: east and west walls, south and north runs.
         for (int side : new int[]{-1, 1}) {

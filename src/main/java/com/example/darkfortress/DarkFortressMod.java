@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 
 public class DarkFortressMod implements ModInitializer {
     public static final String MOD_ID = "darkfortress";
-    public static final String VERSION = "2.1.1";
+    public static final String VERSION = "2.2.0";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     // ---- Tweakables ----
@@ -33,7 +33,9 @@ public class DarkFortressMod implements ModInitializer {
     /** Stop natural monster spawns so only the fortress enemies exist. */
     public static final boolean DISABLE_MOB_SPAWNING = true;
     /** Freeze the overworld at dusk for a gloomier mood. */
-    public static final boolean ETERNAL_DUSK = false;
+    public static final boolean ETERNAL_DUSK = true;
+    /** Permanent drizzle for a gloomier courtyard. */
+    public static final boolean GLOOMY_WEATHER = true;
 
     @Override
     public void onInitialize() {
@@ -43,6 +45,7 @@ public class DarkFortressMod implements ModInitializer {
         ModItems.init();
         ModEntities.init();
         Ashen.init();
+        Atmosphere.init();
         registerCreativeTab();
         CommandRegistrationCallback.EVENT.register(FortressCommands::register);
 
@@ -53,7 +56,11 @@ public class DarkFortressMod implements ModInitializer {
             if (DISABLE_MOB_SPAWNING) rules.get(GameRules.DO_MOB_SPAWNING).set(false, server);
             if (ETERNAL_DUSK) {
                 rules.get(GameRules.DO_DAYLIGHT_CYCLE).set(false, server);
-                server.getOverworld().setTimeOfDay(13000L);
+                server.getOverworld().setTimeOfDay(14000L);
+            }
+            if (GLOOMY_WEATHER) {
+                rules.get(GameRules.DO_WEATHER_CYCLE).set(false, server);
+                server.getOverworld().setWeather(0, 1000000, true, false);
             }
             Fortress.loadOrigin(server);
             Fortress.ensureBuilt(server.getOverworld());
@@ -63,6 +70,7 @@ public class DarkFortressMod implements ModInitializer {
             ServerPlayerEntity p = handler.player;
             p.sendMessage(Text.literal("Dark Fortress " + VERSION + " loaded. Type /fortress status to check it.").formatted(Formatting.DARK_GRAY));
             Fortress.ensureBuilt(server.getOverworld());
+            Stats.apply(p);
             if (p.getCommandTags().contains("df_kit")) return;
             p.addCommandTag("df_kit");
             p.giveItemStack(new ItemStack(ModItems.ESTUS_FLASK));
@@ -72,9 +80,9 @@ public class DarkFortressMod implements ModInitializer {
             ServerWorld w = server.getOverworld();
             BlockPos o = Fortress.origin(w);
             p.setSpawnPoint(w.getRegistryKey(), o.add(0, 0, 4), 0.0f, true, false);
-            Fx.title(p, "FORTRESS OF THE FALLEN", Formatting.DARK_RED, "Rest at bonfires. Find the key. Slay the Demon.");
+            Fx.title(p, "YOU ARE TRAPPED", Formatting.DARK_RED, "The gate is sealed. Something must fall before it opens.");
             p.sendMessage(Text.literal("You are Undead. Light bonfires (right-click) to rest, repair your gear and refill your Estus Flask.").formatted(Formatting.GOLD));
-            p.sendMessage(Text.literal("Explore, loot the chests, and fell the bosses. Hit suspicious walls.").formatted(Formatting.GRAY));
+            p.sendMessage(Text.literal("Right-click a bonfire to rest and spend XP levels on your stats. Slay the Demon of the Keep to break the seal.").formatted(Formatting.GRAY));
         });
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
@@ -86,6 +94,7 @@ public class DarkFortressMod implements ModInitializer {
         // Respawning repairs all your gear and refills Estus; the fortress resets.
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             Fx.repairAll(newPlayer);
+            Stats.apply(newPlayer);
             if (newPlayer.getServer() != null) {
                 Fortress.respawnMobs(newPlayer.getServer().getOverworld());
             }
@@ -131,6 +140,7 @@ public class DarkFortressMod implements ModInitializer {
                     entries.add(ModBlocks.KEY_GATE);
                     entries.add(ModBlocks.ILLUSORY_WALL);
                     entries.add(ModBlocks.ASHEN_PORTAL);
+                    entries.add(ModBlocks.SEALED_GATE);
                 })
                 .build();
         Registry.register(Registries.ITEM_GROUP, Identifier.of(MOD_ID, "main"), group);

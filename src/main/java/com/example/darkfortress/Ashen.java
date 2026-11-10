@@ -5,6 +5,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.LadderBlock;
 import net.minecraft.block.LanternBlock;
+import net.minecraft.block.PillarBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.entity.mob.MobEntity;
@@ -301,27 +302,209 @@ public final class Ashen {
             case 4 -> obelisk(c, cx, cz);
             default -> {}
         }
-        boolean inStructureArea = type >= 0 && type != 9
-                && Math.abs(cx0 + 8 - cx) <= 56 && Math.abs(cz0 + 8 - cz) <= 56;
-        if (!inStructureArea) decor(c, cx0, cz0);
+        decor(c, cx0, cz0, type, cx, cz);
     }
 
-    private static void decor(Canvas c, int cx0, int cz0) {
-        if (Math.abs(cx0) < 48 && Math.abs(cz0) < 48) return;
+    // ------------------------------------------------------------------ landscape
+
+    private static int moundRaw(int x, int z) {
+        double v = Math.sin(x * 0.045) * Math.cos(z * 0.05) + 0.6 * Math.sin((x + z) * 0.03)
+                + 0.4 * Math.cos(x * 0.11 + z * 0.09);
+        return (int) Math.round((v - 0.35) * 3.2);
+    }
+
+    /** Hill height at a column, or -1 if this column must be left flat (structures, hub). */
+    private static int mound(int x, int z, int type, int cx, int cz) {
+        double f;
+        if (type >= 0 && type != 9) {
+            int d = Math.max(Math.abs(x - cx), Math.abs(z - cz));
+            f = Math.min(1.0, Math.max(0.0, (d - 60) / 24.0));
+        } else if (type == -1) {
+            int d = Math.max(Math.abs(x), Math.abs(z));
+            f = Math.min(1.0, Math.max(0.0, (d - 40) / 30.0));
+        } else {
+            f = 1.0;
+        }
+        if (f <= 0.0) return -1;
+        return (int) Math.round(Math.max(0, Math.min(moundRaw(x, z), 7)) * f);
+    }
+
+    private static int groundY(int x, int z, int type, int cx, int cz) {
+        return FLOOR + Math.max(0, mound(x, z, type, cx, cz));
+    }
+
+    private static BlockState surface(int x, int z) {
+        int r = pct(Math.floorDiv(x, 6), Math.floorDiv(z, 6), 31);
+        if (r < 45) return Blocks.COARSE_DIRT.getDefaultState();
+        if (r < 65) return Blocks.SOUL_SOIL.getDefaultState();
+        if (r < 80) return Blocks.GRAVEL.getDefaultState();
+        if (r < 92) return Blocks.BLACKSTONE.getDefaultState();
+        return Blocks.SMOOTH_BASALT.getDefaultState();
+    }
+
+    private static void decor(Canvas c, int cx0, int cz0, int type, int cx, int cz) {
+        // 1. Terrain: hills and ground patches (never touches structure areas or the hub).
+        for (int x = cx0; x <= cx0 + 15; x++) {
+            for (int z = cz0; z <= cz0 + 15; z++) {
+                int h = mound(x, z, type, cx, cz);
+                if (h < 0) continue;
+                BlockState top = surface(x, z);
+                if (h == 0) {
+                    c.set(x, FLOOR, z, top);
+                } else {
+                    for (int y = FLOOR + 1; y <= FLOOR + h; y++) {
+                        c.set(x, y, z, y == FLOOR + h ? top : Blocks.COARSE_DIRT.getDefaultState());
+                    }
+                }
+            }
+        }
+
+        // 2. Objects only where the chunk is well clear of structures and the hub.
+        boolean far;
+        if (type >= 0 && type != 9) {
+            far = Math.max(Math.abs(cx0 + 8 - cx), Math.abs(cz0 + 8 - cz)) > 70;
+        } else if (type == -1) {
+            far = Math.max(Math.abs(cx0 + 8), Math.abs(cz0 + 8)) > 70;
+        } else {
+            far = true;
+        }
+        if (!far) return;
+
+        // Trees: dead trees, teal soul trees, red ember trees.
+        for (int i = 0; i < 2; i++) {
+            if (pct(cx0, cz0, 110 + i) >= 55) continue;
+            int px = cx0 + 5 + Math.floorMod(hash3(cx0, cz0, 100 + i), 6);
+            int pz = cz0 + 5 + Math.floorMod(hash3(cx0, cz0, 120 + i), 6);
+            int y0 = groundY(px, pz, type, cx, cz) + 1;
+            int kind = pct(cx0, cz0, 130 + i);
+            int seed = hash3(cx0, cz0, 140 + i);
+            if (kind < 45) deadTree(c, px, y0, pz, seed);
+            else glowTree(c, px, y0, pz, seed, kind < 75);
+        }
+
+        // Dead bushes.
+        for (int i = 0; i < 4; i++) {
+            int bx = cx0 + Math.floorMod(hash3(cx0, cz0, 200 + i), 16);
+            int bz = cz0 + Math.floorMod(hash3(cx0, cz0, 220 + i), 16);
+            if (pct(cx0, cz0, 210 + i) < 60) {
+                c.set(bx, groundY(bx, bz, type, cx, cz) + 1, bz, Blocks.DEAD_BUSH.getDefaultState());
+            }
+        }
+
+        int mx = cx0 + 8, mz = cz0 + 8;
+        boolean flat = mound(mx, mz, type, cx, cz) == 0 && mound(mx + 5, mz, type, cx, cz) == 0
+                && mound(mx - 5, mz, type, cx, cz) == 0 && mound(mx, mz + 5, type, cx, cz) == 0
+                && mound(mx, mz - 5, type, cx, cz) == 0;
+
+        // Lava pool with a blackstone and magma rim.
+        if (flat && pct(cx0, cz0, 300) < 9) {
+            for (int dx = -5; dx <= 5; dx++) {
+                for (int dz = -5; dz <= 5; dz++) {
+                    int d2 = dx * dx + dz * dz;
+                    if (d2 <= 9) {
+                        c.set(mx + dx, FLOOR, mz + dz, Blocks.LAVA.getDefaultState());
+                    } else if (d2 <= 20) {
+                        c.set(mx + dx, FLOOR, mz + dz, (hash3(mx + dx, mz + dz, 9) & 1) == 0
+                                ? Blocks.MAGMA_BLOCK.getDefaultState() : Blocks.BLACKSTONE.getDefaultState());
+                    }
+                }
+            }
+        }
+        // Soul fire patch.
+        else if (flat && pct(cx0, cz0, 310) < 12) {
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    if (dx * dx + dz * dz <= 5) {
+                        c.set(mx + dx, FLOOR, mz + dz, Blocks.SOUL_SOIL.getDefaultState());
+                        if (pct(mx + dx, mz + dz, 311) < 50) c.set(mx + dx, FLOOR + 1, mz + dz, Blocks.SOUL_FIRE.getDefaultState());
+                    }
+                }
+            }
+        }
+        // Ruined arch.
+        else if (flat && pct(cx0, cz0, 320) < 10) {
+            int ax = cx0 + 4, az = cz0 + 8;
+            c.fillWith(ax, FLOOR + 1, az, ax, FLOOR + 5, az, Ashen::darkBrick);
+            c.fillWith(ax + 6, FLOOR + 1, az, ax + 6, FLOOR + 4 + pct(cx0, cz0, 321) % 2, az, Ashen::darkBrick);
+            for (int x = ax; x <= ax + 6; x++) {
+                if (pct(x, az, 322) < 75) c.set(x, FLOOR + 5, az, darkBrick(x, FLOOR + 5, az));
+            }
+            c.lantern(ax + 3, FLOOR + 1, az);
+        }
+        // Skull on a spike.
+        else if (pct(cx0, cz0, 330) < 10) {
+            int sx = cx0 + 8, sz = cz0 + 8;
+            int gy = groundY(sx, sz, type, cx, cz);
+            c.fill(sx, gy + 1, sz, sx, gy + 2, sz, Blocks.STONE_BRICK_WALL.getDefaultState());
+            c.set(sx, gy + 3, sz, Blocks.SKELETON_SKULL.getDefaultState());
+        }
+        // Bone pile.
+        else if (pct(cx0, cz0, 340) < 10) {
+            for (int i = 0; i < 7; i++) {
+                int bx = mx - 2 + Math.floorMod(hash3(mx, mz, 341 + i), 5);
+                int bz = mz - 2 + Math.floorMod(hash3(mx, mz, 351 + i), 5);
+                int gy = groundY(bx, bz, type, cx, cz) + 1;
+                c.set(bx, gy, bz, Blocks.BONE_BLOCK.getDefaultState());
+                if (i % 3 == 0) c.set(bx, gy + 1, bz, Blocks.SKELETON_SKULL.getDefaultState());
+            }
+        }
+
+        // Old stone pillars.
         int h = hash3(cx0, cz0, 5);
-        if (Math.floorMod(h, 100) < 30) {
+        if (Math.floorMod(h, 100) < 22) {
             int px = cx0 + 3 + Math.floorMod(h >> 3, 10);
             int pz = cz0 + 3 + Math.floorMod(h >> 5, 10);
+            int gy = groundY(px, pz, type, cx, cz);
             int ht = 3 + Math.floorMod(h >> 7, 4);
-            c.fillWith(px, FLOOR + 1, pz, px, FLOOR + ht, pz, Ashen::darkBrick);
+            c.fillWith(px, gy + 1, pz, px, gy + ht, pz, Ashen::darkBrick);
         }
+        // Wandering enemies.
         if (Math.floorMod(h >> 9, 100) < 9) {
             int kind = Math.floorMod(h >> 13, 5);
             int n = 1 + Math.floorMod(h >> 17, 2);
             for (int i = 0; i < n; i++) {
-                c.spawn(kind, cx0 + 6 + i * 3 + 0.5, FLOOR + 1, cz0 + 8 + 0.5);
+                int ex = cx0 + 6 + i * 3;
+                int ez = cz0 + 8;
+                c.spawn(kind, ex + 0.5, groundY(ex, ez, type, cx, cz) + 1, ez + 0.5);
             }
         }
+    }
+
+    private static void deadTree(Canvas c, int x, int y0, int z, int seed) {
+        int ht = 6 + Math.floorMod(hash(seed, 1), 4);
+        BlockState log = Blocks.DARK_OAK_LOG.getDefaultState();
+        for (int y = 0; y < ht; y++) c.set(x, y0 + y, z, log);
+        for (int k = 0; k < 3; k++) {
+            int by = 3 + Math.floorMod(hash(seed, 10 + k), ht - 3);
+            Direction d = Direction.fromHorizontal(Math.floorMod(hash(seed, 20 + k), 4));
+            BlockState bl = log.with(PillarBlock.AXIS, d.getAxis());
+            int len = 2 + Math.floorMod(hash(seed, 30 + k), 2);
+            for (int i = 1; i <= len; i++) {
+                c.set(x + d.getOffsetX() * i, y0 + by + i / 2, z + d.getOffsetZ() * i, bl);
+            }
+            c.set(x + d.getOffsetX() * (len + 1), y0 + by + len / 2, z + d.getOffsetZ() * (len + 1), Blocks.COBWEB.getDefaultState());
+        }
+    }
+
+    /** Glowing alien trees: teal "soul" trees or red "ember" trees with shroomlight fruit. */
+    private static void glowTree(Canvas c, int x, int y0, int z, int seed, boolean teal) {
+        int ht = 6 + Math.floorMod(hash(seed, 2), 3);
+        BlockState stem = (teal ? Blocks.WARPED_STEM : Blocks.CRIMSON_STEM).getDefaultState();
+        BlockState wart = (teal ? Blocks.WARPED_WART_BLOCK : Blocks.NETHER_WART_BLOCK).getDefaultState();
+        for (int y = 0; y < ht; y++) c.set(x, y0 + y, z, stem);
+        int top = y0 + ht;
+        for (int dx = -3; dx <= 3; dx++) {
+            for (int dy = -2; dy <= 2; dy++) {
+                for (int dz = -3; dz <= 3; dz++) {
+                    int d2 = dx * dx + dy * dy * 2 + dz * dz;
+                    if (d2 > 10) continue;
+                    int r = pct(x + dx, top + dy, z + dz);
+                    if (r < 14) continue;
+                    c.set(x + dx, top + dy, z + dz, r > 92 ? Blocks.SHROOMLIGHT.getDefaultState() : wart);
+                }
+            }
+        }
+        c.set(x, y0 + ht - 1, z, stem);
     }
 
     // ------------------------------------------------------------------ labyrinth

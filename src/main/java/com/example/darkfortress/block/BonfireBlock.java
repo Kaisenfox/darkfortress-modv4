@@ -1,8 +1,10 @@
 package com.example.darkfortress.block;
 
+import com.example.darkfortress.BonfireMenu;
 import com.example.darkfortress.Fortress;
 import com.example.darkfortress.Fx;
 import com.example.darkfortress.ModItems;
+import com.example.darkfortress.Stats;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
@@ -30,6 +32,7 @@ public class BonfireBlock extends Block {
     protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
         if (world instanceof ServerWorld sw && player instanceof ServerPlayerEntity sp) {
             sp.setSpawnPoint(sw.getRegistryKey(), pos.south(), 0.0f, true, false);
+            Stats.apply(sp);
             sp.heal(sp.getMaxHealth());
             sp.getHungerManager().add(20, 1.0f);
             sp.clearStatusEffects();
@@ -48,6 +51,7 @@ public class BonfireBlock extends Block {
             if (sw.getRegistryKey() == World.OVERWORLD) {
                 Fortress.respawnMobs(sw);
             }
+            BonfireMenu.open(sp);
         }
         return ActionResult.success(world.isClient());
     }
