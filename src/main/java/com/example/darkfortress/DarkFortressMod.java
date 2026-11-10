@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 
 public class DarkFortressMod implements ModInitializer {
     public static final String MOD_ID = "darkfortress";
-    public static final String VERSION = "2.2.0";
+    public static final String VERSION = "2.2.1";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     // ---- Tweakables ----
@@ -121,6 +121,7 @@ public class DarkFortressMod implements ModInitializer {
                     entries.add(ModItems.CLAYMORE);
                     entries.add(ModItems.BLACK_KNIGHT_GREATSWORD);
                     entries.add(ModItems.MOONLIGHT_GREATSWORD);
+                    entries.add(ModItems.TEST_BLADE);
                     entries.add(ModItems.SOUL_STAFF);
                     entries.add(ModItems.PYROMANCY_FLAME);
                     entries.add(ModItems.LIGHTNING_SPEAR);

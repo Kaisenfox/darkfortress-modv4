@@ -19,6 +19,8 @@ public final class ModItems {
     public static Item HOLLOW_DAGGER, HATCHET, WINGED_SPEAR, UCHIGATANA, HALBERD, WARHAMMER;
     // magic
     public static Item LIGHTNING_SPEAR, PYROMANCY_FLAME, SOUL_STAFF;
+    // testing
+    public static Item TEST_BLADE;
     // accessories
     public static Item RING_OF_FAVOR;
     // armor
@@ -82,6 +84,8 @@ public final class ModItems {
                 Hits::cleave, "Polearm: long reach", "Hits cleave nearby enemies"));
         WARHAMMER = reg("warhammer", new WeaponItem(WeaponItem.stats(400, 9.0, -3.2, 0, Rarity.RARE),
                 Hits::stun, "Hammer: very heavy", "Hits stun and slow"));
+
+        TEST_BLADE = reg("test_blade", new TestBladeItem(WeaponItem.stats(100000, 1000.0, -1.0, 4.0, Rarity.EPIC)));
 
         // ----- magic -----
         LIGHTNING_SPEAR = reg("lightning_spear", new AbilityItem(

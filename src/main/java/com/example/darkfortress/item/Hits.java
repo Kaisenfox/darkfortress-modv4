@@ -70,4 +70,12 @@ public final class Hits {
             w.spawnParticles(ParticleTypes.CRIT, p.getX(), p.getY() + 1.2, p.getZ(), 15, 0.3, 0.3, 0.3, 0.2);
         }
     }
+
+    /** Blade of Testing: anything it touches dies. */
+    public static void annihilate(ServerWorld w, ItemStack stack, LivingEntity attacker, LivingEntity target) {
+        if (!target.isAlive()) return;
+        target.timeUntilRegen = 0;
+        target.damage(src(w, attacker), 100000.0f);
+        w.spawnParticles(ParticleTypes.END_ROD, target.getX(), target.getY() + target.getHeight() * 0.5, target.getZ(), 25, 0.4, 0.6, 0.4, 0.2);
+    }
 }
