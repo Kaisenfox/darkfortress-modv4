@@ -25,5 +25,5 @@ jobs:
       - name: Upload jar
         uses: actions/upload-artifact@v4
         with:
-          name: darkfortressv4-jar
+          name: darkfortressv5-jar
           path: build/libs/*.jar
