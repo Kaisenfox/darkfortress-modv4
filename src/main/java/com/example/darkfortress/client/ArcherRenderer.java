@@ -12,8 +12,12 @@ public class ArcherRenderer extends BipedEntityRenderer<HollowArcherEntity, Skel
     private static final Identifier TEXTURE =
             Identifier.of(DarkFortressMod.MOD_ID, "textures/entity/hollow_archer.png");
 
+    private static final Identifier GLOW =
+            Identifier.of(DarkFortressMod.MOD_ID, "textures/entity/hollow_archer_glow.png");
+
     public ArcherRenderer(EntityRendererFactory.Context ctx) {
         super(ctx, new SkeletonEntityModel<>(ctx.getPart(EntityModelLayers.SKELETON)), 0.5f);
+        this.addFeature(new GlowFeature<>(this, GLOW));
     }
 
     @Override

@@ -25,7 +25,7 @@ public final class ModBlocks {
 
     public static void init() {
         BONFIRE = register("bonfire", new BonfireBlock(AbstractBlock.Settings.create()
-                .strength(-1.0f, 3600000.0f).dropsNothing().luminance(s -> 15).sounds(BlockSoundGroup.STONE)));
+                .strength(-1.0f, 3600000.0f).dropsNothing().luminance(s -> 15).nonOpaque().sounds(BlockSoundGroup.STONE)));
         KEY_GATE = register("key_gate", new KeyGateBlock(AbstractBlock.Settings.create()
                 .strength(-1.0f, 3600000.0f).dropsNothing().sounds(BlockSoundGroup.METAL)));
         ILLUSORY_WALL = register("illusory_wall", new IllusoryWallBlock(AbstractBlock.Settings.create()

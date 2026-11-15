@@ -1,13 +1,17 @@
 package com.example.darkfortress.client;
 
+import com.example.darkfortress.ModBlocks;
 import com.example.darkfortress.ModEntities;
 import com.example.darkfortress.entity.DSMob;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.minecraft.client.render.RenderLayer;
 
 public class DarkFortressClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.BONFIRE, RenderLayer.getCutout());
         EntityRendererRegistry.<DSMob>register(ModEntities.HOLLOW_SOLDIER, ctx -> new HollowRenderer(ctx, "hollow_soldier", 1.0f));
         EntityRendererRegistry.<DSMob>register(ModEntities.SKELETON_WARRIOR, ctx -> new HollowRenderer(ctx, "skeleton_warrior", 1.0f));
         EntityRendererRegistry.<DSMob>register(ModEntities.HOLLOW_KNIGHT, ctx -> new HollowRenderer(ctx, "hollow_knight", 1.1f));

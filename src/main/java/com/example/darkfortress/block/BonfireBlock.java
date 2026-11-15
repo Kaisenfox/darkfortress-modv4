@@ -7,6 +7,7 @@ import com.example.darkfortress.ModItems;
 import com.example.darkfortress.Stats;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.particle.ParticleTypes;
@@ -20,12 +21,21 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
 /** Right-click to rest: sets respawn, heals, refills Estus, respawns the fortress enemies. */
 public class BonfireBlock extends Block {
+    private static final VoxelShape SHAPE = Block.createCuboidShape(1, 0, 1, 15, 14, 15);
+
     public BonfireBlock(Settings settings) {
         super(settings);
+    }
+
+    @Override
+    protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+        return SHAPE;
     }
 
     @Override

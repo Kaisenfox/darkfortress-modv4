@@ -18,6 +18,7 @@ public class HollowRenderer extends BipedEntityRenderer<DSMob, BipedEntityModel<
         super(ctx, new BipedEntityModel<>(ctx.getPart(EntityModelLayers.ZOMBIE)), 0.5f * scale);
         this.texture = Identifier.of(DarkFortressMod.MOD_ID, "textures/entity/" + name + ".png");
         this.scale = scale;
+        this.addFeature(new GlowFeature<>(this, Identifier.of(DarkFortressMod.MOD_ID, "textures/entity/" + name + "_glow.png")));
     }
 
     @Override
