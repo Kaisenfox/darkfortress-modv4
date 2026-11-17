@@ -13,3 +13,9 @@ NEW IN 2.2.0
 
 USE A NEW WORLD (the sealed fortress and the realm's fog/terrain only apply to new worlds/chunks).
 Commands: /fortress status | tp | build | respawn | kit | realm | opengate
+
+2.4.0 - ASHEN REALM REDESIGN
+ The realm is now an enclosed, endless citadel: solid masonry carved into winding corridors and
+ halls under a sealed cavern ceiling, with no sky. Four architectural zones (Burg ruins, Catacombs,
+ Cathedral, Ember depths), broad avenues linking the set pieces, and pillared halls.
+ To regenerate an already-visited realm, delete <world>/dimensions/darkfortress/ashen_realm.

@@ -1,6 +1,7 @@
 package com.example.darkfortress;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.LadderBlock;
@@ -47,6 +48,7 @@ public final class Ashen {
 
     public static void init() {
         ServerChunkEvents.CHUNK_LOAD.register(Ashen::onChunkLoad);
+        ServerTickEvents.END_SERVER_TICK.register(Ashen::drain);
     }
 
     // ------------------------------------------------------------------ travel
@@ -227,21 +229,34 @@ public final class Ashen {
     public static void ensureHub(ServerWorld w) {
         BlockPos marker = new BlockPos(1, 2, 1);
         if (w.getBlockState(marker).isOf(Blocks.RED_NETHER_BRICKS)) return;
+        // Generate the surrounding citadel first, so the shrine is built on top of it.
+        for (int cx = -32; cx <= 16; cx += 16) {
+            for (int cz = -32; cz <= 16; cz += 16) {
+                w.getChunk(cx >> 4, cz >> 4);
+                generateChunk(w, cx, cz);
+            }
+        }
         Canvas c = new Canvas(w, -30, -30, 30, 30);
         for (int x = -14; x <= 14; x++) {
             for (int z = -14; z <= 14; z++) {
                 if (x * x + z * z <= 13 * 13) {
                     c.set(x, FLOOR, z, tile(x, z));
-                    for (int y = FLOOR + 1; y <= FLOOR + 8; y++) c.set(x, y, z, AIR);
                 }
             }
         }
+        // A ring of tall pillars (cathedral colonnade) with braziers at their feet.
         for (int k = 0; k < 8; k++) {
             double a = k * Math.PI / 4;
             int px = (int) Math.round(Math.cos(a) * 10);
             int pz = (int) Math.round(Math.sin(a) * 10);
-            c.fillWith(px, FLOOR + 1, pz, px, FLOOR + 6, pz, Ashen::darkBrick);
-            c.lantern(px, FLOOR + 7, pz);
+            c.fillWith(px, FLOOR + 1, pz, px, FLOOR + 21, pz, Ashen::darkBrick);
+            int bx = (int) Math.round(Math.cos(a) * 8.5);
+            int bz = (int) Math.round(Math.sin(a) * 8.5);
+            c.set(bx, FLOOR + 1, bz, Blocks.SOUL_CAMPFIRE.getDefaultState());
+        }
+        for (int k = 0; k < 16; k++) {
+            double a = k * Math.PI / 8;
+            c.lantern((int) Math.round(Math.cos(a) * 17), FLOOR + 1, (int) Math.round(Math.sin(a) * 17));
         }
         c.bonfire(0, FLOOR + 1, 0);
         for (int x = -1; x <= 1; x++)
@@ -254,7 +269,7 @@ public final class Ashen {
 
     // ------------------------------------------------------------------ chunk generation
 
-    /** -1 = none (hub area), else 0..5 structure type or 9 = empty. */
+    /** -1 = none (hub area), else 0..4 structure type or 9 = empty. */
     private static int regionType(int rx, int rz) {
         if ((rx == 0 || rx == -1) && (rz == 0 || rz == -1)) return -1;
         int h = Math.floorMod(hash(rx, rz), 100);
@@ -266,19 +281,49 @@ public final class Ashen {
         return 9;
     }
 
+    private static final java.util.ArrayDeque<long[]> PENDING = new java.util.ArrayDeque<>();
+
     private static void onChunkLoad(ServerWorld world, WorldChunk chunk) {
         if (!world.getRegistryKey().equals(WORLD)) return;
-        // Do NOT touch the world here: this chunk is still mid-load and world lookups can hang.
-        // Generate a couple of ticks later, when the chunk is fully available.
-        final int cx0 = chunk.getPos().getStartX();
-        final int cz0 = chunk.getPos().getStartZ();
-        Scheduler.later(2, () -> {
-            try {
-                generateChunk(world, cx0, cz0);
-            } catch (Throwable t) {
-                DarkFortressMod.LOGGER.error("Ashen Realm chunk generation failed at " + cx0 + "," + cz0, t);
+        // Never touch the world inside this callback (the chunk is mid-load). Queue it.
+        PENDING.add(new long[]{chunk.getPos().getStartX(), chunk.getPos().getStartZ()});
+    }
+
+    /** Generates at most 2 queued chunks per tick, always the ones players are standing in first. */
+    private static void drain(MinecraftServer server) {
+        if (PENDING.isEmpty()) return;
+        ServerWorld w = server.getWorld(WORLD);
+        if (w == null) {
+            PENDING.clear();
+            return;
+        }
+        int budget = 2;
+        for (ServerPlayerEntity p : w.getPlayers()) {
+            if (budget <= 0) break;
+            long px = p.getBlockX() & ~15, pz = p.getBlockZ() & ~15;
+            java.util.Iterator<long[]> it = PENDING.iterator();
+            while (it.hasNext()) {
+                long[] c = it.next();
+                if (c[0] == px && c[1] == pz) {
+                    it.remove();
+                    safeGenerate(w, (int) c[0], (int) c[1]);
+                    budget--;
+                    break;
+                }
             }
-        });
+        }
+        while (budget-- > 0 && !PENDING.isEmpty()) {
+            long[] c = PENDING.poll();
+            safeGenerate(w, (int) c[0], (int) c[1]);
+        }
+    }
+
+    private static void safeGenerate(ServerWorld w, int cx0, int cz0) {
+        try {
+            generateChunk(w, cx0, cz0);
+        } catch (Throwable t) {
+            DarkFortressMod.LOGGER.error("Ashen Realm chunk generation failed at " + cx0 + "," + cz0, t);
+        }
     }
 
     private static void generateChunk(ServerWorld world, int cx0, int cz0) {
@@ -289,12 +334,13 @@ public final class Ashen {
         world.setBlockState(marker, Blocks.CRYING_OBSIDIAN.getDefaultState(), 2);
 
         Canvas c = new Canvas(world, cx0, cz0, cx0 + 15, cz0 + 15);
+        terrain(c, cx0, cz0);
+
         int rx = Math.floorDiv(cx0, REGION);
         int rz = Math.floorDiv(cz0, REGION);
         int cx = rx * REGION + REGION / 2;
         int cz = rz * REGION + REGION / 2;
-        int type = regionType(rx, rz);
-        switch (type) {
+        switch (regionType(rx, rz)) {
             case 0 -> labyrinth(c, cx, cz);
             case 1 -> chapelRuin(c, cx, cz);
             case 2 -> watchtower(c, cx, cz);
@@ -302,171 +348,248 @@ public final class Ashen {
             case 4 -> obelisk(c, cx, cz);
             default -> {}
         }
-        decor(c, cx0, cz0, type, cx, cz);
-    }
+        decor(c, cx0, cz0);
 
-    // ------------------------------------------------------------------ landscape
-
-    private static int moundRaw(int x, int z) {
-        double v = Math.sin(x * 0.045) * Math.cos(z * 0.05) + 0.6 * Math.sin((x + z) * 0.03)
-                + 0.4 * Math.cos(x * 0.11 + z * 0.09);
-        return (int) Math.round((v - 0.35) * 3.2);
-    }
-
-    /** Hill height at a column, or -1 if this column must be left flat (structures, hub). */
-    private static int mound(int x, int z, int type, int cx, int cz) {
-        double f;
-        if (type >= 0 && type != 9) {
-            int d = Math.max(Math.abs(x - cx), Math.abs(z - cz));
-            f = Math.min(1.0, Math.max(0.0, (d - 60) / 24.0));
-        } else if (type == -1) {
-            int d = Math.max(Math.abs(x), Math.abs(z));
-            f = Math.min(1.0, Math.max(0.0, (d - 40) / 30.0));
-        } else {
-            f = 1.0;
+        // Never entomb a player who was standing here when the walls went up.
+        for (ServerPlayerEntity p : world.getPlayers()) {
+            int px = p.getBlockX(), pz = p.getBlockZ();
+            if (c.in(px, pz)) c.fill(px - 1, p.getBlockY(), pz - 1, px + 1, p.getBlockY() + 2, pz + 1, AIR);
         }
-        if (f <= 0.0) return -1;
-        return (int) Math.round(Math.max(0, Math.min(moundRaw(x, z), 7)) * f);
     }
 
-    private static int groundY(int x, int z, int type, int cx, int cz) {
-        return FLOOR + Math.max(0, mound(x, z, type, cx, cz));
+    // ------------------------------------------------------------------ the citadel (enclosed layout)
+
+    private static final int SOLID = 0, CORRIDOR = 1, ROOM = 2, AVENUE = 3, PLAZA = 4, HUBAREA = 5;
+    /** Open space is sealed by a ceiling plane above this height. */
+    private static final int CEIL = FLOOR + 31;
+
+    private static double h01(int x, int z, int seed) {
+        return (hash3(x, z, seed) & 0xffff) / 65535.0;
     }
 
-    private static BlockState surface(int x, int z) {
-        int r = pct(Math.floorDiv(x, 6), Math.floorDiv(z, 6), 31);
-        if (r < 45) return Blocks.COARSE_DIRT.getDefaultState();
-        if (r < 65) return Blocks.SOUL_SOIL.getDefaultState();
-        if (r < 80) return Blocks.GRAVEL.getDefaultState();
-        if (r < 92) return Blocks.BLACKSTONE.getDefaultState();
-        return Blocks.SMOOTH_BASALT.getDefaultState();
+    /** Smooth value noise in 0..1. */
+    private static double vnoise(int x, int z, double scale, int seed) {
+        double fx = x / scale, fz = z / scale;
+        int x0 = (int) Math.floor(fx), z0 = (int) Math.floor(fz);
+        double tx = fx - x0, tz = fz - z0;
+        tx = tx * tx * (3 - 2 * tx);
+        tz = tz * tz * (3 - 2 * tz);
+        double a = h01(x0, z0, seed), b = h01(x0 + 1, z0, seed), c = h01(x0, z0 + 1, seed), d = h01(x0 + 1, z0 + 1, seed);
+        double top = a + (b - a) * tx, bot = c + (d - c) * tx;
+        return top + (bot - top) * tz;
     }
 
-    private static void decor(Canvas c, int cx0, int cz0, int type, int cx, int cz) {
-        // 1. Terrain: hills and ground patches (never touches structure areas or the hub).
+    private static int zone(int x, int z) {
+        if (Math.abs(x) < 48 && Math.abs(z) < 48) return 2;
+        return Math.floorMod(hash3(Math.floorDiv(x, 96), Math.floorDiv(z, 96), 7), 4);
+    }
+
+    /** What kind of space is this column: solid masonry, a corridor, a hall, an avenue, a set-piece plaza... */
+    private static int kind(int x, int z) {
+        if (Math.hypot(x + 0.5, z + 0.5) <= 21) return HUBAREA;
+        if ((Math.abs(x) <= 4 && Math.abs(z) <= 70) || (Math.abs(z) <= 4 && Math.abs(x) <= 70)) return AVENUE;
+        int rx = Math.floorDiv(x, REGION), rz = Math.floorDiv(z, REGION);
+        int dx = Math.floorMod(x, REGION) - REGION / 2, dz = Math.floorMod(z, REGION) - REGION / 2;
+        int t = regionType(rx, rz);
+        if (t >= 0 && t != 9) {
+            int r = t == 0 ? 44 : 22;
+            if (Math.abs(dx) <= r && Math.abs(dz) <= r) return PLAZA;
+        }
+        if (Math.abs(dx) <= 4 || Math.abs(dz) <= 4) return AVENUE;
+        double n1 = vnoise(x, z, 38, 11) * 2 - 1;
+        double n2 = vnoise(x, z, 27, 23) * 2 - 1;
+        if (vnoise(x, z, 22, 37) > 0.76) return ROOM;
+        if (Math.abs(n1) < 0.15 || Math.abs(n2) < 0.12) return CORRIDOR;
+        return SOLID;
+    }
+
+    /** Open height above the floor for a non-solid column. */
+    private static int ceilH(int x, int z, int k) {
+        if (k == HUBAREA) return 22;
+        if (k == PLAZA) return 24;
+        if (k == AVENUE) return 13;
+        if (k == ROOM) return 14 + (int) Math.round(vnoise(x, z, 16, 51) * 10);
+        return 8 + (int) Math.round(vnoise(x, z, 14, 61) * 5);
+    }
+
+    private static boolean nearWall(int x, int z) {
+        return kind(x + 1, z) == SOLID || kind(x - 1, z) == SOLID || kind(x, z + 1) == SOLID || kind(x, z - 1) == SOLID;
+    }
+
+    // ---- palettes: Burg ruins (0), Catacombs (1), Cathedral (2), Ember depths (3)
+
+    private static BlockState wall(int zone, int x, int y, int z) {
+        int r = pct(x, y, z);
+        if (zone == 0) {
+            if (r < 40) return Blocks.STONE_BRICKS.getDefaultState();
+            if (r < 62) return Blocks.CRACKED_STONE_BRICKS.getDefaultState();
+            if (r < 82) return Blocks.MOSSY_STONE_BRICKS.getDefaultState();
+            if (r < 94) return Blocks.COBBLESTONE.getDefaultState();
+            return Blocks.ANDESITE.getDefaultState();
+        }
+        if (zone == 1) {
+            if (r < 35) return Blocks.DEEPSLATE_BRICKS.getDefaultState();
+            if (r < 55) return Blocks.CRACKED_DEEPSLATE_BRICKS.getDefaultState();
+            if (r < 75) return Blocks.TUFF_BRICKS.getDefaultState();
+            if (r < 90) return Blocks.COBBLED_DEEPSLATE.getDefaultState();
+            return Blocks.DEEPSLATE_TILES.getDefaultState();
+        }
+        if (zone == 2) {
+            if (r < 40) return Blocks.POLISHED_BLACKSTONE_BRICKS.getDefaultState();
+            if (r < 60) return Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS.getDefaultState();
+            if (r < 82) return Blocks.BLACKSTONE.getDefaultState();
+            if (r < 93) return Blocks.DEEPSLATE_TILES.getDefaultState();
+            if (r < 99) return Blocks.CHISELED_POLISHED_BLACKSTONE.getDefaultState();
+            return Blocks.GILDED_BLACKSTONE.getDefaultState();
+        }
+        if (r < 32) return Blocks.NETHER_BRICKS.getDefaultState();
+        if (r < 52) return Blocks.CRACKED_NETHER_BRICKS.getDefaultState();
+        if (r < 66) return Blocks.RED_NETHER_BRICKS.getDefaultState();
+        if (r < 82) return Blocks.BLACKSTONE.getDefaultState();
+        if (r < 94) return Blocks.BASALT.getDefaultState();
+        return Blocks.MAGMA_BLOCK.getDefaultState();
+    }
+
+    private static BlockState floorBlock(int zone, int x, int z, int k) {
+        int r = pct(x, z, 17);
+        boolean road = k == AVENUE || k == HUBAREA;
+        if (zone == 0) {
+            if (road) return r < 70 ? Blocks.STONE_BRICKS.getDefaultState() : (r < 88 ? Blocks.CRACKED_STONE_BRICKS.getDefaultState() : Blocks.MOSSY_STONE_BRICKS.getDefaultState());
+            if (r < 40) return Blocks.COBBLESTONE.getDefaultState();
+            if (r < 70) return Blocks.STONE_BRICKS.getDefaultState();
+            if (r < 86) return Blocks.GRAVEL.getDefaultState();
+            return Blocks.MOSSY_COBBLESTONE.getDefaultState();
+        }
+        if (zone == 1) {
+            if (r < 45) return Blocks.DEEPSLATE_TILES.getDefaultState();
+            if (r < 70) return Blocks.COBBLED_DEEPSLATE.getDefaultState();
+            if (r < 90) return Blocks.TUFF_BRICKS.getDefaultState();
+            return road ? Blocks.DEEPSLATE_TILES.getDefaultState() : Blocks.SOUL_SOIL.getDefaultState();
+        }
+        if (zone == 2) {
+            if (road) return ((x + z) & 1) == 0 ? Blocks.POLISHED_BLACKSTONE.getDefaultState() : Blocks.POLISHED_BLACKSTONE_BRICKS.getDefaultState();
+            if (r < 55) return Blocks.POLISHED_BLACKSTONE_BRICKS.getDefaultState();
+            if (r < 85) return Blocks.POLISHED_BLACKSTONE.getDefaultState();
+            return Blocks.SMOOTH_BASALT.getDefaultState();
+        }
+        if (r < 45) return Blocks.BLACKSTONE.getDefaultState();
+        if (r < 70) return Blocks.BASALT.getDefaultState();
+        if (r < 88) return Blocks.NETHER_BRICKS.getDefaultState();
+        if (r < 99) return road ? Blocks.BLACKSTONE.getDefaultState() : Blocks.SOUL_SOIL.getDefaultState();
+        return Blocks.MAGMA_BLOCK.getDefaultState();
+    }
+
+    private static void terrain(Canvas c, int cx0, int cz0) {
+        final int top = CEIL + 3;
+        final BlockState lantern = Blocks.SOUL_LANTERN.getDefaultState();
+        final BlockState hanging = lantern.with(LanternBlock.HANGING, true);
         for (int x = cx0; x <= cx0 + 15; x++) {
             for (int z = cz0; z <= cz0 + 15; z++) {
-                int h = mound(x, z, type, cx, cz);
-                if (h < 0) continue;
-                BlockState top = surface(x, z);
-                if (h == 0) {
-                    c.set(x, FLOOR, z, top);
+                int k = kind(x, z);
+                int zone = zone(x, z);
+                boolean pillar = false;
+                if (k == ROOM) {
+                    int m = zone == 2 ? 6 : 9;
+                    pillar = Math.floorMod(x, m) == 0 && Math.floorMod(z, m) == 0;
+                }
+                c.set(x, FLOOR, z, floorBlock(zone, x, z, k));
+                if (k == SOLID || pillar) {
+                    for (int y = FLOOR + 1; y <= top; y++) c.set(x, y, z, wall(zone, x, y, z));
                 } else {
-                    for (int y = FLOOR + 1; y <= FLOOR + h; y++) {
-                        c.set(x, y, z, y == FLOOR + h ? top : Blocks.COARSE_DIRT.getDefaultState());
+                    int h = ceilH(x, z, k);
+                    for (int y = FLOOR + h + 1; y <= top; y++) c.set(x, y, z, wall(zone, x, y, z));
+                    int r = pct(x, z, 99);
+                    boolean grand = k == AVENUE || k == HUBAREA || k == PLAZA;
+                    if (r < (grand ? 3 : 2) && nearWall(x, z)) {
+                        c.set(x, FLOOR + 1, z, lantern);
+                    } else if (r >= 3 && r < (grand ? 6 : 4)) {
+                        int len = 2 + (r % 2);
+                        for (int i = 0; i < len; i++) c.set(x, FLOOR + h - i, z, Blocks.CHAIN.getDefaultState());
+                        c.set(x, FLOOR + h - len, z, hanging);
+                    } else if (zone == 1 && r >= 6 && r < 8) {
+                        c.set(x, FLOOR + 1, z, Blocks.BONE_BLOCK.getDefaultState());
+                        if (r == 7) c.set(x, FLOOR + 2, z, Blocks.SKELETON_SKULL.getDefaultState());
+                    } else if (zone == 1 && r == 8) {
+                        c.set(x, FLOOR + h, z, Blocks.COBWEB.getDefaultState());
+                    } else if (zone == 3 && r >= 6 && r < 8) {
+                        c.set(x, FLOOR + h + 1, z, Blocks.SHROOMLIGHT.getDefaultState());
                     }
                 }
+                c.set(x, top + 1, z, Blocks.BEDROCK.getDefaultState());
             }
         }
+    }
 
-        // 2. Objects only where the chunk is well clear of structures and the hub.
-        boolean far;
-        if (type >= 0 && type != 9) {
-            far = Math.max(Math.abs(cx0 + 8 - cx), Math.abs(cz0 + 8 - cz)) > 70;
-        } else if (type == -1) {
-            far = Math.max(Math.abs(cx0 + 8), Math.abs(cz0 + 8)) > 70;
-        } else {
-            far = true;
-        }
-        if (!far) return;
+    // ------------------------------------------------------------------ set dressing in halls
 
-        // Trees: dead trees, teal soul trees, red ember trees.
-        for (int i = 0; i < 2; i++) {
-            if (pct(cx0, cz0, 110 + i) >= 55) continue;
+    private static boolean roomy(int x, int z) {
+        if (kind(x, z) != ROOM) return false;
+        for (int dx = -5; dx <= 5; dx += 5)
+            for (int dz = -5; dz <= 5; dz += 5)
+                if (kind(x + dx, z + dz) == SOLID) return false;
+        return ceilH(x, z, ROOM) >= 18;
+    }
+
+    private static void decor(Canvas c, int cx0, int cz0) {
+        for (int i = 0; i < 3; i++) {
             int px = cx0 + 5 + Math.floorMod(hash3(cx0, cz0, 100 + i), 6);
             int pz = cz0 + 5 + Math.floorMod(hash3(cx0, cz0, 120 + i), 6);
-            int y0 = groundY(px, pz, type, cx, cz) + 1;
-            int kind = pct(cx0, cz0, 130 + i);
+            if (!roomy(px, pz)) continue;
+            int zone = zone(px, pz);
+            int roll = pct(cx0, cz0, 130 + i);
             int seed = hash3(cx0, cz0, 140 + i);
-            if (kind < 45) deadTree(c, px, y0, pz, seed);
-            else glowTree(c, px, y0, pz, seed, kind < 75);
-        }
-
-        // Dead bushes.
-        for (int i = 0; i < 4; i++) {
-            int bx = cx0 + Math.floorMod(hash3(cx0, cz0, 200 + i), 16);
-            int bz = cz0 + Math.floorMod(hash3(cx0, cz0, 220 + i), 16);
-            if (pct(cx0, cz0, 210 + i) < 60) {
-                c.set(bx, groundY(bx, bz, type, cx, cz) + 1, bz, Blocks.DEAD_BUSH.getDefaultState());
-            }
-        }
-
-        int mx = cx0 + 8, mz = cz0 + 8;
-        boolean flat = mound(mx, mz, type, cx, cz) == 0 && mound(mx + 5, mz, type, cx, cz) == 0
-                && mound(mx - 5, mz, type, cx, cz) == 0 && mound(mx, mz + 5, type, cx, cz) == 0
-                && mound(mx, mz - 5, type, cx, cz) == 0;
-
-        // Lava pool with a blackstone and magma rim.
-        if (flat && pct(cx0, cz0, 300) < 9) {
-            for (int dx = -5; dx <= 5; dx++) {
-                for (int dz = -5; dz <= 5; dz++) {
-                    int d2 = dx * dx + dz * dz;
-                    if (d2 <= 9) {
-                        c.set(mx + dx, FLOOR, mz + dz, Blocks.LAVA.getDefaultState());
-                    } else if (d2 <= 20) {
-                        c.set(mx + dx, FLOOR, mz + dz, (hash3(mx + dx, mz + dz, 9) & 1) == 0
-                                ? Blocks.MAGMA_BLOCK.getDefaultState() : Blocks.BLACKSTONE.getDefaultState());
+            if (roll < 28) {
+                deadTree(c, px, FLOOR + 1, pz, seed);
+            } else if (roll < 45) {
+                glowTree(c, px, FLOOR + 1, pz, seed, zone != 3);
+            } else if (roll < 57) {
+                if (zone == 3) {
+                    for (int dx = -5; dx <= 5; dx++) {
+                        for (int dz = -5; dz <= 5; dz++) {
+                            int d2 = dx * dx + dz * dz;
+                            if (d2 <= 9) c.set(px + dx, FLOOR, pz + dz, Blocks.LAVA.getDefaultState());
+                            else if (d2 <= 20) c.set(px + dx, FLOOR, pz + dz, (hash3(px + dx, pz + dz, 9) & 1) == 0
+                                    ? Blocks.MAGMA_BLOCK.getDefaultState() : Blocks.BLACKSTONE.getDefaultState());
+                        }
+                    }
+                } else {
+                    for (int dx = -2; dx <= 2; dx++) {
+                        for (int dz = -2; dz <= 2; dz++) {
+                            if (dx * dx + dz * dz <= 5) {
+                                c.set(px + dx, FLOOR, pz + dz, Blocks.SOUL_SOIL.getDefaultState());
+                                if (pct(px + dx, pz + dz, 311) < 50) c.set(px + dx, FLOOR + 1, pz + dz, Blocks.SOUL_FIRE.getDefaultState());
+                            }
+                        }
                     }
                 }
-            }
-        }
-        // Soul fire patch.
-        else if (flat && pct(cx0, cz0, 310) < 12) {
-            for (int dx = -2; dx <= 2; dx++) {
-                for (int dz = -2; dz <= 2; dz++) {
-                    if (dx * dx + dz * dz <= 5) {
-                        c.set(mx + dx, FLOOR, mz + dz, Blocks.SOUL_SOIL.getDefaultState());
-                        if (pct(mx + dx, mz + dz, 311) < 50) c.set(mx + dx, FLOOR + 1, mz + dz, Blocks.SOUL_FIRE.getDefaultState());
-                    }
+            } else if (roll < 68) {
+                for (int s = 0; s < 7; s++) {
+                    int bx = px - 2 + Math.floorMod(hash3(px, pz, 341 + s), 5);
+                    int bz = pz - 2 + Math.floorMod(hash3(px, pz, 351 + s), 5);
+                    c.set(bx, FLOOR + 1, bz, Blocks.BONE_BLOCK.getDefaultState());
+                    if (s % 3 == 0) c.set(bx, FLOOR + 2, bz, Blocks.SKELETON_SKULL.getDefaultState());
                 }
+            } else if (roll < 78) {
+                c.fill(px, FLOOR + 1, pz, px, FLOOR + 2, pz, Blocks.STONE_BRICK_WALL.getDefaultState());
+                c.set(px, FLOOR + 3, pz, Blocks.SKELETON_SKULL.getDefaultState());
+            } else if (roll < 88) {
+                c.fillWith(px - 3, FLOOR + 1, pz, px - 3, FLOOR + 6, pz, Ashen::darkBrick);
+                c.fillWith(px + 3, FLOOR + 1, pz, px + 3, FLOOR + 5, pz, Ashen::darkBrick);
+                for (int x = px - 3; x <= px + 3; x++) if (pct(x, pz, 322) < 75) c.set(x, FLOOR + 6, pz, darkBrick(x, FLOOR + 6, pz));
+                c.lantern(px, FLOOR + 1, pz);
             }
         }
-        // Ruined arch.
-        else if (flat && pct(cx0, cz0, 320) < 10) {
-            int ax = cx0 + 4, az = cz0 + 8;
-            c.fillWith(ax, FLOOR + 1, az, ax, FLOOR + 5, az, Ashen::darkBrick);
-            c.fillWith(ax + 6, FLOOR + 1, az, ax + 6, FLOOR + 4 + pct(cx0, cz0, 321) % 2, az, Ashen::darkBrick);
-            for (int x = ax; x <= ax + 6; x++) {
-                if (pct(x, az, 322) < 75) c.set(x, FLOOR + 5, az, darkBrick(x, FLOOR + 5, az));
-            }
-            c.lantern(ax + 3, FLOOR + 1, az);
-        }
-        // Skull on a spike.
-        else if (pct(cx0, cz0, 330) < 10) {
-            int sx = cx0 + 8, sz = cz0 + 8;
-            int gy = groundY(sx, sz, type, cx, cz);
-            c.fill(sx, gy + 1, sz, sx, gy + 2, sz, Blocks.STONE_BRICK_WALL.getDefaultState());
-            c.set(sx, gy + 3, sz, Blocks.SKELETON_SKULL.getDefaultState());
-        }
-        // Bone pile.
-        else if (pct(cx0, cz0, 340) < 10) {
-            for (int i = 0; i < 7; i++) {
-                int bx = mx - 2 + Math.floorMod(hash3(mx, mz, 341 + i), 5);
-                int bz = mz - 2 + Math.floorMod(hash3(mx, mz, 351 + i), 5);
-                int gy = groundY(bx, bz, type, cx, cz) + 1;
-                c.set(bx, gy, bz, Blocks.BONE_BLOCK.getDefaultState());
-                if (i % 3 == 0) c.set(bx, gy + 1, bz, Blocks.SKELETON_SKULL.getDefaultState());
-            }
-        }
-
-        // Old stone pillars.
-        int h = hash3(cx0, cz0, 5);
-        if (Math.floorMod(h, 100) < 22) {
-            int px = cx0 + 3 + Math.floorMod(h >> 3, 10);
-            int pz = cz0 + 3 + Math.floorMod(h >> 5, 10);
-            int gy = groundY(px, pz, type, cx, cz);
-            int ht = 3 + Math.floorMod(h >> 7, 4);
-            c.fillWith(px, gy + 1, pz, px, gy + ht, pz, Ashen::darkBrick);
-        }
-        // Wandering enemies.
-        if (Math.floorMod(h >> 9, 100) < 9) {
-            int kind = Math.floorMod(h >> 13, 5);
-            int n = 1 + Math.floorMod(h >> 17, 2);
-            for (int i = 0; i < n; i++) {
-                int ex = cx0 + 6 + i * 3;
-                int ez = cz0 + 8;
-                c.spawn(kind, ex + 0.5, groundY(ex, ez, type, cx, cz) + 1, ez + 0.5);
-            }
+        // Enemies: the deeper, the nastier. Never near the arrival hub.
+        int[][] pools = {{0, 0, 2, 5}, {1, 1, 4, 3}, {2, 3, 3, 5}, {4, 4, 2, 3}};
+        for (int i = 0; i < 2; i++) {
+            if (pct(cx0, cz0, 400 + i) >= 14) continue;
+            int ex = cx0 + 2 + Math.floorMod(hash3(cx0, cz0, 410 + i), 12);
+            int ez = cz0 + 2 + Math.floorMod(hash3(cx0, cz0, 430 + i), 12);
+            if (kind(ex, ez) == SOLID || Math.hypot(ex, ez) < 34) continue;
+            int[] pool = pools[zone(ex, ez)];
+            int mob = pool[Math.floorMod(hash3(cx0, cz0, 420 + i), 4)];
+            int n = 1 + Math.floorMod(hash3(cx0, cz0, 440 + i), 2);
+            for (int k = 0; k < n; k++) c.spawn(mob, ex + 0.5 + k, FLOOR + 1, ez + 0.5);
         }
     }
 
@@ -553,14 +676,16 @@ public final class Ashen {
                 }
             }
         }
-        // Two entrances.
-        c.fill(ox + 1, FLOOR + 1, oz + 84, ox + 3, FLOOR + 7, oz + 84, AIR);
-        c.fill(ox + 84, FLOOR + 1, oz + 1, ox + 84, FLOOR + 7, oz + 3, AIR);
+        // Four entrances, one on each avenue.
+        c.fill(ox + 41, FLOOR + 1, oz + 84, ox + 43, FLOOR + 7, oz + 84, AIR);
+        c.fill(ox + 41, FLOOR + 1, oz, ox + 43, FLOOR + 7, oz, AIR);
+        c.fill(ox, FLOOR + 1, oz + 41, ox, FLOOR + 7, oz + 43, AIR);
+        c.fill(ox + 84, FLOOR + 1, oz + 41, ox + 84, FLOOR + 7, oz + 43, AIR);
 
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 if (i >= 9 && i <= 11 && j >= 9 && j <= 11) continue;
-                if ((i <= 1 && j >= n - 2) || (i >= n - 2 && j <= 1)) continue;
+                if ((i == 10 && (j <= 1 || j >= n - 2)) || (j == 10 && (i <= 1 || i >= n - 2))) continue;
                 int x = ox + p * i + 2;
                 int z = oz + p * j + 2;
                 if (!c.in(x, z)) continue;
