@@ -25,12 +25,18 @@ public class AbilityItem extends Item {
     private final int cooldownTicks;
     private final boolean consume;
     private final String[] lines;
+    private final boolean glint;
 
     public AbilityItem(Settings settings, int cooldownTicks, boolean consume, Ability ability, String... lines) {
+        this(settings, cooldownTicks, consume, true, ability, lines);
+    }
+
+    public AbilityItem(Settings settings, int cooldownTicks, boolean consume, boolean glint, Ability ability, String... lines) {
         super(settings);
         this.ability = ability;
         this.cooldownTicks = cooldownTicks;
         this.consume = consume;
+        this.glint = glint;
         this.lines = lines;
     }
 
@@ -57,7 +63,7 @@ public class AbilityItem extends Item {
 
     @Override
     public boolean hasGlint(ItemStack stack) {
-        return true;
+        return glint;
     }
 
     @Override

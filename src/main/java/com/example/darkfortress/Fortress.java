@@ -541,6 +541,8 @@ public final class Fortress {
         }
 
         void chest(int x, int y, int z, int tier) {
+            int chance = tier <= 1 ? 50 : (tier == 2 ? 65 : 80);
+            if (rnd.nextInt(100) >= chance) return;   // many chests simply aren't there
             ChestBlockEntity c = placeChest(x, y, z);
             if (c != null) Loot.fill(c, new BlockPos(ox + x, oy + y, oz + z).asLong(), tier);
         }

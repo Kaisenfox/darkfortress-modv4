@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 
 public class DarkFortressMod implements ModInitializer {
     public static final String MOD_ID = "darkfortress";
-    public static final String VERSION = "2.4.0";
+    public static final String VERSION = "2.5.0";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     // ---- Tweakables ----
@@ -110,6 +110,21 @@ public class DarkFortressMod implements ModInitializer {
                     entries.add(ModItems.GREEN_BLOSSOM);
                     entries.add(ModItems.FIREBOMB);
                     entries.add(ModItems.DIVINE_BLESSING);
+                    entries.add(ModItems.MOSS_CLUMP);
+                    entries.add(ModItems.BANDAGE);
+                    entries.add(ModItems.STALE_ALE);
+                    entries.add(ModItems.ROTTEN_BREAD);
+                    entries.add(ModItems.BONE_DUST);
+                    entries.add(ModItems.RUSTED_TRINKET);
+                    entries.add(ModItems.TATTERED_CLOTH);
+                    entries.add(ModItems.BROKEN_CHARM);
+                    entries.add(ModItems.RUSTY_SHORTSWORD);
+                    entries.add(ModItems.BENT_CLUB);
+                    entries.add(ModItems.CRACKED_MACE);
+                    entries.add(ModItems.BLUNT_CLEAVER);
+                    entries.add(ModItems.SPLINTERED_SPEAR);
+                    entries.add(ModItems.ROTTED_FLAIL);
+                    entries.add(ModItems.JESTERS_SABRE);
                     entries.add(ModItems.BROKEN_SWORD);
                     entries.add(ModItems.LONGSWORD);
                     entries.add(ModItems.HOLLOW_DAGGER);

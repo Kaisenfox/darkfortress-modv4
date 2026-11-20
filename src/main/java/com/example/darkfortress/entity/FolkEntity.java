@@ -72,13 +72,13 @@ public class FolkEntity extends DSMob {
     protected void dropLoot(DamageSource source, boolean causedByPlayer) {
         if (this.getWorld().isClient) return;
         if (this.getType() == ModEntities.HOLLOW_KNIGHT) {
-            dropSouls(ModItems.SOUL_LOST_UNDEAD, 3, 5);
+            dropSouls(ModItems.SOUL_LOST_UNDEAD, 2, 3);
         } else if (this.getType() == ModEntities.ASH_GHOUL) {
-            dropSouls(ModItems.SOUL_LOST_UNDEAD, 1, 2);
+            if (this.random.nextInt(2) == 0) dropSouls(ModItems.SOUL_LOST_UNDEAD, 1, 1);
         } else {
-            dropSouls(ModItems.SOUL_LOST_UNDEAD, 1, 3);
+            if (this.random.nextInt(3) != 0) dropSouls(ModItems.SOUL_LOST_UNDEAD, 1, 2);
         }
-        if (this.random.nextInt(10) == 0) {
+        if (this.random.nextInt(18) == 0) {
             this.dropStack(new ItemStack(ModItems.GREEN_BLOSSOM));
         }
     }

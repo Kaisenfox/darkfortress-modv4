@@ -194,6 +194,7 @@ public final class Ashen {
 
         void chest(int x, int y, int z, int tier) {
             if (!in(x, z)) return;
+            if (pct(x, y, z) >= (tier <= 1 ? 50 : (tier == 2 ? 65 : 80))) return;
             set(x, y, z, Blocks.CHEST.getDefaultState());
             BlockEntity be = w.getBlockEntity(new BlockPos(x, y, z));
             if (be instanceof ChestBlockEntity c) {
@@ -697,7 +698,7 @@ public final class Ashen {
                 if (i > 0 && openE(cx, cz, i - 1, j, n)) degree++;
 
                 int h = pct(i, j, cx ^ cz);
-                if (degree == 1 && Math.floorMod(hash3(i, j, 7), 3) == 0) {
+                if (degree == 1 && Math.floorMod(hash3(i, j, 7), 5) == 0) {
                     c.chest(x, FLOOR + 1, z, Math.floorMod(hash3(i, j, 8), 5) == 0 ? 3 : 2);
                     continue;
                 }

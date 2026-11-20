@@ -19,6 +19,9 @@ public final class ModItems {
     public static Item HOLLOW_DAGGER, HATCHET, WINGED_SPEAR, UCHIGATANA, HALBERD, WARHAMMER;
     // magic
     public static Item LIGHTNING_SPEAR, PYROMANCY_FLAME, SOUL_STAFF;
+    // cheap loot: healing, junk, weak and silly weapons
+    public static Item MOSS_CLUMP, BANDAGE, STALE_ALE, ROTTEN_BREAD, BONE_DUST, RUSTED_TRINKET, TATTERED_CLOTH, BROKEN_CHARM;
+    public static Item RUSTY_SHORTSWORD, BENT_CLUB, CRACKED_MACE, BLUNT_CLEAVER, SPLINTERED_SPEAR, ROTTED_FLAIL, JESTERS_SABRE;
     // testing
     public static Item TEST_BLADE;
     // accessories
@@ -86,6 +89,35 @@ public final class ModItems {
                 Hits::stun, "Hammer: very heavy", "Hits stun and slow"));
 
         TEST_BLADE = reg("test_blade", new TestBladeItem(WeaponItem.stats(100000, 1000.0, -1.0, 4.0, Rarity.EPIC)));
+
+        // ----- cheap loot -----
+        MOSS_CLUMP = reg("moss_clump", new AbilityItem(new Item.Settings().maxCount(8), 20, true, false, ExtraAbilities::mossClump,
+                "Restores 2 hearts", "Tastes of damp earth"));
+        BANDAGE = reg("bandage", new AbilityItem(new Item.Settings().maxCount(8), 20, true, false, ExtraAbilities::bandage,
+                "Slowly restores health", "Already seen some use"));
+        STALE_ALE = reg("stale_ale", new AbilityItem(new Item.Settings().maxCount(4), 20, true, false, ExtraAbilities::staleAle,
+                "Restores 1.5 hearts", "You will regret it"));
+        ROTTEN_BREAD = reg("rotten_bread", new AbilityItem(new Item.Settings().maxCount(8), 20, true, false, ExtraAbilities::rottenBread,
+                "Restores 1 heart", "Makes you hungry"));
+        BONE_DUST = reg("bone_dust", new FlavorItem(new Item.Settings().maxCount(64), "Fine white dust.", "Useless."));
+        RUSTED_TRINKET = reg("rusted_trinket", new FlavorItem(new Item.Settings().maxCount(16), "Someone once loved this.", "Useless."));
+        TATTERED_CLOTH = reg("tattered_cloth", new FlavorItem(new Item.Settings().maxCount(64), "A scrap of something.", "Useless."));
+        BROKEN_CHARM = reg("broken_charm", new FlavorItem(new Item.Settings().maxCount(16), "It didn't work.", "Useless."));
+
+        RUSTY_SHORTSWORD = reg("rusty_shortsword", new WeaponItem(WeaponItem.stats(90, 2.5, -2.2, 0, Rarity.COMMON), null,
+                "Barely a weapon."));
+        BENT_CLUB = reg("bent_club", new WeaponItem(WeaponItem.stats(120, 3.0, -2.8, 0, Rarity.COMMON), null,
+                "Hit them until it stops."));
+        CRACKED_MACE = reg("cracked_mace", new WeaponItem(WeaponItem.stats(140, 4.5, -3.0, 0, Rarity.COMMON), null,
+                "Heavy and about to fall apart."));
+        BLUNT_CLEAVER = reg("blunt_cleaver", new WeaponItem(WeaponItem.stats(100, 3.5, -2.4, 0, Rarity.COMMON), null,
+                "Meant for meat."));
+        SPLINTERED_SPEAR = reg("splintered_spear", new WeaponItem(WeaponItem.stats(80, 2.5, -2.6, 1.0, Rarity.COMMON), null,
+                "Reach, at least."));
+        ROTTED_FLAIL = reg("rotted_flail", new WeaponItem(WeaponItem.stats(130, 3.5, -2.9, 0, Rarity.COMMON), Hits::rot,
+                "Its rot seeps into wounds"));
+        JESTERS_SABRE = reg("jesters_sabre", new WeaponItem(WeaponItem.stats(160, 3.0, -1.8, 0, Rarity.UNCOMMON), Hits::jester,
+                "Hits cause a random effect", "Sometimes it helps them"));
 
         // ----- magic -----
         LIGHTNING_SPEAR = reg("lightning_spear", new AbilityItem(

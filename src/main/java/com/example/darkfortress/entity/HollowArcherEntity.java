@@ -36,7 +36,7 @@ public class HollowArcherEntity extends SkeletonEntity {
     @Override
     protected void dropLoot(DamageSource source, boolean causedByPlayer) {
         if (!this.getWorld().isClient) {
-            this.dropStack(new ItemStack(ModItems.SOUL_LOST_UNDEAD, 1 + this.random.nextInt(3)));
+            if (this.random.nextInt(3) != 0) this.dropStack(new ItemStack(ModItems.SOUL_LOST_UNDEAD, 1 + this.random.nextInt(2)));
         }
     }
 }

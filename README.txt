@@ -19,3 +19,10 @@ Commands: /fortress status | tp | build | respawn | kit | realm | opengate
  halls under a sealed cavern ceiling, with no sky. Four architectural zones (Burg ruins, Catacombs,
  Cathedral, Ember depths), broad avenues linking the set pieces, and pillared halls.
  To regenerate an already-visited realm, delete <world>/dimensions/darkfortress/ashen_realm.
+
+2.5.0 - HARDER LOOT
+ Chests are rarer (many don't spawn), hold 1-5 items instead of 3-7, and are mostly junk, weak weapons
+ and minor healing. 15 new cheap items: Moss Clump, Bloodied Bandage, Stale Ale, Rotten Bread (healing);
+ Bone Dust, Rusted Trinket, Tattered Cloth, Broken Charm (useless); Rusty Shortsword, Bent Club,
+ Cracked Mace, Blunt Cleaver, Splintered Spear, Rotted Flail, Jester's Sabre (weak/silly weapons).
+ Enemies drop fewer souls and rarer extras.

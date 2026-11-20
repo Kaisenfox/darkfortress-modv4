@@ -46,5 +46,20 @@
   "entity.darkfortress.witch_of_ash": "Witch of Ash",
   "entity.darkfortress.labyrinth_warden": "Labyrinth Warden",
   "block.darkfortress.sealed_gate": "Sealed Gate",
-  "item.darkfortress.test_blade": "Blade of Testing"
+  "item.darkfortress.test_blade": "Blade of Testing",
+  "item.darkfortress.rusty_shortsword": "Rusty Shortsword",
+  "item.darkfortress.bent_club": "Bent Club",
+  "item.darkfortress.cracked_mace": "Cracked Mace",
+  "item.darkfortress.blunt_cleaver": "Blunt Cleaver",
+  "item.darkfortress.splintered_spear": "Splintered Spear",
+  "item.darkfortress.rotted_flail": "Rotted Flail",
+  "item.darkfortress.jesters_sabre": "Jester's Sabre",
+  "item.darkfortress.moss_clump": "Moss Clump",
+  "item.darkfortress.bandage": "Bloodied Bandage",
+  "item.darkfortress.stale_ale": "Stale Ale",
+  "item.darkfortress.rotten_bread": "Rotten Bread",
+  "item.darkfortress.bone_dust": "Bone Dust",
+  "item.darkfortress.rusted_trinket": "Rusted Trinket",
+  "item.darkfortress.tattered_cloth": "Tattered Cloth",
+  "item.darkfortress.broken_charm": "Broken Charm"
 }

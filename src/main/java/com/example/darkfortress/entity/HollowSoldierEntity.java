@@ -27,7 +27,8 @@ public class HollowSoldierEntity extends DSMob {
 
     @Override
     protected void dropLoot(DamageSource source, boolean causedByPlayer) {
-        dropSouls(ModItems.SOUL_LOST_UNDEAD, 1, 3);
+        if (this.random.nextInt(3) != 0) dropSouls(ModItems.SOUL_LOST_UNDEAD, 1, 2);
+        if (this.random.nextInt(14) == 0 && !this.getWorld().isClient) this.dropStack(new net.minecraft.item.ItemStack(ModItems.MOSS_CLUMP));
     }
 
     @Override

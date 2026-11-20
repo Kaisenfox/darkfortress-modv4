@@ -82,9 +82,9 @@ public class HollowMageEntity extends DSMob {
     @Override
     protected void dropLoot(DamageSource source, boolean causedByPlayer) {
         if (this.getWorld().isClient) return;
-        dropSouls(ModItems.SOUL_LOST_UNDEAD, 2, 4);
-        if (this.random.nextInt(25) == 0) this.dropStack(new ItemStack(ModItems.SOUL_STAFF));
-        if (this.random.nextInt(8) == 0) this.dropStack(new ItemStack(ModItems.GREEN_BLOSSOM));
+        if (this.random.nextInt(3) != 0) dropSouls(ModItems.SOUL_LOST_UNDEAD, 1, 3);
+        if (this.random.nextInt(60) == 0) this.dropStack(new ItemStack(ModItems.SOUL_STAFF));
+        if (this.random.nextInt(16) == 0) this.dropStack(new ItemStack(ModItems.GREEN_BLOSSOM));
     }
 
     @Override

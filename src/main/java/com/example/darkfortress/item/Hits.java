@@ -78,4 +78,22 @@ public final class Hits {
         target.damage(src(w, attacker), 100000.0f);
         w.spawnParticles(ParticleTypes.END_ROD, target.getX(), target.getY() + target.getHeight() * 0.5, target.getZ(), 25, 0.4, 0.6, 0.4, 0.2);
     }
+
+    /** Jester's Sabre: a random, mostly harmless effect on whatever it hits. */
+    public static void jester(ServerWorld w, ItemStack stack, LivingEntity attacker, LivingEntity target) {
+        switch (w.random.nextInt(5)) {
+            case 0 -> target.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1));
+            case 1 -> target.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 60, 0));
+            case 2 -> target.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 100, 0));
+            case 3 -> target.addStatusEffect(new StatusEffectInstance(StatusEffects.LEVITATION, 30, 0));
+            default -> target.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 80, 1));   // oops
+        }
+        w.spawnParticles(ParticleTypes.NOTE, target.getX(), target.getY() + target.getHeight() + 0.3, target.getZ(), 3, 0.3, 0.2, 0.3, 1.0);
+    }
+
+    /** Rotted Flail: a little poison. */
+    public static void rot(ServerWorld w, ItemStack stack, LivingEntity attacker, LivingEntity target) {
+        target.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 60, 0));
+        w.spawnParticles(ParticleTypes.SMOKE, target.getX(), target.getY() + 1.0, target.getZ(), 6, 0.3, 0.4, 0.3, 0.02);
+    }
 }

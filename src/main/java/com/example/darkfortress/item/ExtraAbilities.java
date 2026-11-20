@@ -10,6 +10,7 @@ import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Box;
@@ -87,6 +88,45 @@ public final class ExtraAbilities {
         world.spawnParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getY() + 1.0, player.getZ(), 15, 0.4, 0.5, 0.4, 0.05);
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                 SoundEvents.ENTITY_GENERIC_EAT, SoundCategory.PLAYERS, 1.0f, 1.2f);
+        return true;
+    }
+
+    private static boolean cheapHeal(ServerWorld world, PlayerEntity p, float amount) {
+        if (p.getHealth() >= p.getMaxHealth()) {
+            p.sendMessage(Text.literal("You are already healthy."), true);
+            return false;
+        }
+        p.heal(amount);
+        world.spawnParticles(ParticleTypes.HEART, p.getX(), p.getY() + 1.2, p.getZ(), 3, 0.3, 0.4, 0.3, 0.02);
+        world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_GENERIC_EAT, SoundCategory.PLAYERS, 0.8f, 0.9f);
+        return true;
+    }
+
+    /** Moss Clump: restores 2 hearts. */
+    public static boolean mossClump(ServerWorld world, PlayerEntity p) {
+        return cheapHeal(world, p, 4.0f);
+    }
+
+    /** Bloodied Bandage: slow regeneration. */
+    public static boolean bandage(ServerWorld world, PlayerEntity p) {
+        p.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 1));
+        world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_GENERIC_EAT, SoundCategory.PLAYERS, 0.6f, 1.4f);
+        return true;
+    }
+
+    /** Stale Ale: a little healing, a lot of regret. */
+    public static boolean staleAle(ServerWorld world, PlayerEntity p) {
+        p.heal(3.0f);
+        p.addStatusEffect(new StatusEffectInstance(StatusEffects.NAUSEA, 120, 0));
+        world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_GENERIC_DRINK, SoundCategory.PLAYERS, 0.8f, 0.8f);
+        return true;
+    }
+
+    /** Rotten Bread: barely helps, makes you hungry. */
+    public static boolean rottenBread(ServerWorld world, PlayerEntity p) {
+        p.heal(2.0f);
+        p.addStatusEffect(new StatusEffectInstance(StatusEffects.HUNGER, 200, 0));
+        world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_GENERIC_EAT, SoundCategory.PLAYERS, 0.8f, 0.7f);
         return true;
     }
 }
